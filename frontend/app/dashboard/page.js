@@ -1,14 +1,26 @@
 'use client';
-import { useEffect, useState } from 'react';
+
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function Dashboard() {
-  const router = useRouter();
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const router = useRouter();
 
   const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
+    const selectedFile = e.target.files[0];
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    if (selectedFile && allowedTypes.includes(selectedFile.type)) {
+      setFile(selectedFile);
+    } else {
+      alert('Please upload a PDF, DOC, or DOCX file.');
+      setFile(null);
+    }
   };
 
   const handleUpload = async (e) => {
@@ -16,23 +28,30 @@ export default function Dashboard() {
     if (!file) return;
 
     setUploading(true);
+    const formData = new FormData();
+    formData.append('resume', file);
 
-    // Simulated AI response
-    setTimeout(() => {
-      const mockResult = {
-        atsScore: 82,
-        grammarScore: 91,
-        formatting: 'Strong formatting with consistent bullet points.',
-        suggestions: [
-          'Use stronger action verbs.',
-          'Optimize keywords for your target job roles.',
-        ],
-      };
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
 
-      localStorage.setItem('resumeResult', JSON.stringify(mockResult));
-      setUploading(false);
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('Server returned:', text);
+        throw new Error('Server error during upload');
+      }
+
+      const data = await res.json();
+      localStorage.setItem('resumeResult', JSON.stringify(data));
       router.push('/result');
-    }, 2000);
+    } catch (err) {
+      console.error('❌ Upload failed:', err);
+      alert(`Resume upload failed: ${err.message}`);
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -62,4 +81,3 @@ export default function Dashboard() {
     </div>
   );
 }
-''
